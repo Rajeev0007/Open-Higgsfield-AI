@@ -68,6 +68,17 @@ For a deep dive into the technical architecture and the philosophy behind the "I
 
 ![Studio Demo](docs/assets/studio_demo.webp)
 
+## 🆓 Free image generation (Cloudflare Workers AI)
+
+The **FLUX Schnell (Free)** model in Image Studio costs nothing. It uses Cloudflare Workers AI's free daily allowance (10,000 neurons/day, roughly 100+ square 1024px images, resets 00:00 UTC). No Kie.ai or fal.ai key is needed for it. Other models and all video models still need paid provider credits.
+
+Setup:
+1. Create a free Cloudflare account at [dash.cloudflare.com](https://dash.cloudflare.com). Copy your **Account ID** (shown on the account home page / Workers & Pages overview).
+2. Go to **My Profile → API Tokens → Create Token → Custom token**, add the permission **Account → Workers AI → Read**, and create it.
+3. In Netlify, open **Site configuration → Environment variables** and add `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`. Redeploy.
+
+Generated images are stored in Netlify Blobs (included with Netlify's free plan) and served from `/.netlify/functions/free-media`.
+
 ## ✨ Features
 
 - **Image Studio** — Generate images from text prompts (50+ text-to-image models) or transform existing images (55+ image-to-image models). Switches model set automatically based on whether a reference image is provided. Quality and resolution controls visible for models that support them.

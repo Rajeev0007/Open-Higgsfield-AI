@@ -2,6 +2,7 @@ const { json, byId, createTask, toHostedUrl, guard } = require('./_kie')
 const { submit: falSubmit } = require('./_fal')
 const { GENERATIONS, createRecord } = require('./_airtable')
 const { requireAccount, accountProviderKeys, updateAccount } = require('./_auth')
+const { FREE_IMAGE_MODEL, generateFreeImage, storeFreeImage } = require('./_cloudflare')
 
 const STYLES = {
   realistic: { prompt: 'Photorealistic, natural lighting, true-to-life detail and texture.', enum: 'REALISTIC' },
@@ -122,16 +123,71 @@ exports.handler = guard('create', async function (event) {
   if (event.httpMethod === 'OPTIONS') return json(200, { ok: true })
   if (event.httpMethod !== 'POST') return json(405, { error: 'Method not allowed' })
 
-  const auth = await requireAccount(event)
-  if (auth.error) return json(auth.error.statusCode, auth.error.body)
-  const keys = accountProviderKeys(auth.account)
-
   const body = JSON.parse(event.body || '{}')
   let {
     modelId, prompt, images = [], videos = [], params = {}, style, brand = false,
     avatarLoraUrl, avatarTriggerWord,
   } = body
+
+  // The free model needs no Kie/fal key, so it skips the provider-setup check.
+  const isFree = modelId === FREE_IMAGE_MODEL.id
+  const auth = await requireAccount(event, { requireProviderSetup: !isFree })
+  if (auth.error) return json(auth.error.statusCode, auth.error.body)
+  const keys = accountProviderKeys(auth.account)
+
   if (!prompt) return json(400, { error: 'Prompt is required.' })
+
+  if (isFree) {
+    if (images.length || videos.length) return json(400, { error: `${FREE_IMAGE_MODEL.label} is text-to-image only.` })
+    const chosen = STYLES[style]
+    if (chosen) prompt = `${prompt.replace(/[.\s]+$/, '')}. ${chosen.prompt}`
+    if (String(prompt).length > 2048) return json(400, { error: 'Prompt cannot exceed 2,048 characters.' })
+
+    let image
+    try {
+      image = await generateFreeImage(prompt, { seed: Number(params.seed) })
+    } catch (error) {
+      return json(error.status || 502, { error: error.message })
+    }
+
+    const hosted = await storeFreeImage(event, image)
+    if (!hosted) {
+      // Still show the picture; it just can't be saved to the library.
+      return json(200, {
+        ok: true,
+        url: `data:${image.contentType};base64,${image.buffer.toString('base64')}`,
+        kind: 'image', model: FREE_IMAGE_MODEL.id, prompt, provider: 'cloudflare',
+        storage: 'direct', storageWarning: 'Image storage unavailable; this image is not saved to the library.',
+      })
+    }
+
+    let storage = 'airtable'
+    let storageWarning = ''
+    try {
+      await createRecord(GENERATIONS, {
+        Name: `${FREE_IMAGE_MODEL.id} · ${new Date().toISOString()}`,
+        Type: 'Image',
+        Model: FREE_IMAGE_MODEL.id,
+        Prompt: prompt,
+        'Source URL': hosted.url,
+        Media: [{ url: hosted.url, filename: hosted.key }],
+        Params: JSON.stringify({
+          aspect_ratio: '1:1', _model: FREE_IMAGE_MODEL.id, _kind: 'image', _prompt: prompt,
+          _provider: 'cloudflare', _credits: 0, _accountId: auth.account.id, _completedAt: new Date().toISOString(),
+        }),
+        Status: 'Ready',
+        Created: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('[create] free image saved to Blobs but Airtable write failed', error.message)
+      storage = 'direct'
+      storageWarning = `Airtable storage unavailable: ${error.message}`
+    }
+    return json(200, {
+      ok: true, url: hosted.url, kind: 'image', model: FREE_IMAGE_MODEL.id, prompt,
+      provider: 'cloudflare', storage, storageWarning,
+    })
+  }
 
   if (modelId === VIDEO_EDIT_MODEL.id) {
     if (!keys.fal) return json(403, { error: 'FAL_KEY_REQUIRED' })
