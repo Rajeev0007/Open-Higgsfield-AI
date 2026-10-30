@@ -598,6 +598,18 @@ export function getResolutionsForLipSyncModel(modelId) {
   return m?.resolutions || [];
 }
 
+// --- Free model (hand-maintained, keep when regenerating this file) --------
+// Served by Cloudflare Workers AI's free daily allowance (see
+// netlify/functions/_cloudflare.js). First in the list so it is the default.
+t2iModels.unshift({
+  id: 'cloudflare/flux-1-schnell',
+  label: 'FLUX Schnell (Free)',
+  kind: 'image',
+  api: 'cloudflare',
+  blurb: 'Free text-to-image. Square 1024px, about 100+ images a day.',
+  aspects: ['1:1'],
+});
+
 // --- Studio compatibility -------------------------------------------------
 // The registry entries use the kie schema (`label`, `blurb`), while the
 // studios were written against `name` / `description`. Normalize once here

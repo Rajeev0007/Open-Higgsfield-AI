@@ -58,7 +58,8 @@ export async function sessionAccount() {
 }
 
 function checkSession() {
-    return request('/credits').then(j => { sessionActive = true; return true; }).catch(() => { sessionActive = false; return false; });
+    // /session (not /credits) so accounts without a Kie key stay signed in.
+    return request('/session').then(j => { sessionActive = true; return true; }).catch(() => { sessionActive = false; return false; });
 }
 
 async function pollBackend(taskId, maxAttempts = 300, interval = 2000) {    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -89,6 +90,7 @@ async function create(payload, params) {
 }
 
 const IMAGE_MAP = [
+    ['cloudflare/flux-1-schnell', 'cloudflare/flux-1-schnell'],
     ['nano-banana-pro', 'nano-banana-pro'],
     ['nano-banana-2', 'nano-banana-2'],
     ['nano-banana', 'nano-banana-2'],

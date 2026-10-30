@@ -12,7 +12,7 @@ function recordParams(record) {
 
 function providerFor(params) {
   const explicit = String(params._provider || '').toLowerCase()
-  if (explicit === 'fal' || explicit === 'kie') return explicit
+  if (explicit === 'fal' || explicit === 'kie' || explicit === 'cloudflare') return explicit
   return String(params._taskId || '').startsWith('fal:') ? 'fal' : 'kie'
 }
 

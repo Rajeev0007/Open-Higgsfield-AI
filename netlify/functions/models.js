@@ -1,6 +1,7 @@
 // The model registry, annotated with published fal.ai pricing and costs measured from real runs.
 const { json, denied, models, checkEnv, guard } = require('./_kie')
 const { GENERATIONS, listRecords } = require('./_airtable')
+const { FREE_IMAGE_MODEL } = require('./_cloudflare')
 
 const HAPPYHORSE_1_1_REFERENCE_ID = 'happyhorse-1-1/reference-to-video'
 
@@ -80,7 +81,7 @@ function normalizeModel(model) {
   }
 }
 
-const allModels = () => [...models().map(normalizeModel), ...KIE_EXTRA_MODELS, ...FAL_MODELS]
+const allModels = () => [FREE_IMAGE_MODEL, ...models().map(normalizeModel), ...KIE_EXTRA_MODELS, ...FAL_MODELS]
 
 exports.handler = guard('models', async function (event) {
   if (event.httpMethod === 'OPTIONS') return json(200, { ok: true })
